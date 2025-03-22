@@ -119,8 +119,3 @@ const Header: React.FC = () => {
 };
 
 export default Header;
-
-// Add this at the end of the file
-declare module "framer-motion" {
-  export const motion: any;
-}

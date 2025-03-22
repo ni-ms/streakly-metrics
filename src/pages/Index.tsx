@@ -7,7 +7,6 @@ import Header from "@/components/layout/Header";
 import HabitCard from "@/components/layout/HabitCard";
 import EmptyState from "@/components/layout/EmptyState";
 import AddHabitDialog from "@/components/layout/AddHabitDialog";
-import { AddHabitDialog as AddHabitDialogType } from "@/components/layout/AddHabitDialog";
 
 const Index = () => {
   const [habits, setHabits] = useState<Habit[]>([]);

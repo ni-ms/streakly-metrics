@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addHabit, habitColors, updateHabit } from "@/utils/habitUtils";
-import { Habit } from "@/types/habit";
+import { Habit, Frequency } from "@/types/habit";
 import { CheckCheck, AlarmClock, BookOpen, Dumbbell, Brain, Heart, Coffee, Utensils, Droplets, Moon } from "lucide-react";
 
 interface AddHabitDialogProps {
@@ -38,7 +38,9 @@ const AddHabitDialog: React.FC<AddHabitDialogProps> = ({
   const [description, setDescription] = useState(habitToEdit?.description || "");
   const [color, setColor] = useState(habitToEdit?.color || habitColors[0]);
   const [icon, setIcon] = useState(habitToEdit?.icon || "check");
-  const [frequency, setFrequency] = useState(habitToEdit?.frequency.type || "daily");
+  const [frequency, setFrequency] = useState<"daily" | "weekly" | "custom">(
+    habitToEdit?.frequency.type || "daily"
+  );
 
   const isEditing = !!habitToEdit;
 
@@ -70,7 +72,7 @@ const AddHabitDialog: React.FC<AddHabitDialogProps> = ({
         color,
         icon,
         frequency: {
-          type: frequency as "daily" | "weekly" | "custom",
+          type: frequency,
           daysOfWeek: frequency === "daily" ? [0, 1, 2, 3, 4, 5, 6] : habitToEdit.frequency.daysOfWeek,
           customInterval: habitToEdit.frequency.customInterval
         }
@@ -82,7 +84,7 @@ const AddHabitDialog: React.FC<AddHabitDialogProps> = ({
         color,
         icon,
         frequency: {
-          type: frequency as "daily" | "weekly" | "custom",
+          type: frequency,
           daysOfWeek: frequency === "daily" ? [0, 1, 2, 3, 4, 5, 6] : undefined,
         }
       });
@@ -149,7 +151,7 @@ const AddHabitDialog: React.FC<AddHabitDialogProps> = ({
             <Label htmlFor="frequency">Frequency</Label>
             <Select
               value={frequency}
-              onValueChange={(value) => setFrequency(value)}
+              onValueChange={(value: "daily" | "weekly" | "custom") => setFrequency(value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select frequency" />
