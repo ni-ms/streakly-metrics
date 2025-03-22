@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getHabits, deleteHabit } from "@/utils/habitUtils";
 import { Habit } from "@/types/habit";
@@ -14,40 +14,41 @@ const Index = () => {
   const [editingHabit, setEditingHabit] = useState<Habit | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Load habits from localStorage
-    const loadHabits = () => {
-      const storedHabits = getHabits();
-      setHabits(storedHabits);
-      setLoading(false);
-    };
+  // Memoized function to load habits
+  const loadHabits = useCallback(() => {
+    const storedHabits = getHabits();
+    setHabits(storedHabits);
+    if (loading) setLoading(false);
+  }, [loading]);
 
+  useEffect(() => {
+    // Initial load
     loadHabits();
 
     // Set up an interval to refresh habits (for streak calculations)
     const intervalId = setInterval(loadHabits, 60000); // Refresh every minute
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [loadHabits]);
 
-  const handleEditHabit = (habit: Habit) => {
+  const handleEditHabit = useCallback((habit: Habit) => {
     setEditingHabit(habit);
     setShowAddHabit(true);
-  };
+  }, []);
 
-  const handleDeleteHabit = (id: string) => {
+  const handleDeleteHabit = useCallback((id: string) => {
     deleteHabit(id);
-    setHabits(habits.filter(habit => habit.id !== id));
-  };
+    setHabits(prev => prev.filter(habit => habit.id !== id));
+  }, []);
 
-  const handleAddHabitDialogClose = (open: boolean) => {
+  const handleAddHabitDialogClose = useCallback((open: boolean) => {
     setShowAddHabit(open);
     if (!open) {
       setEditingHabit(undefined);
       // Refresh habits list
-      setHabits(getHabits());
+      loadHabits();
     }
-  };
+  }, [loadHabits]);
 
   return (
     <div className="min-h-screen bg-gray-50/50">

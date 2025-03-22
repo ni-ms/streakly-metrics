@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, MoreVertical, Trash2, Edit, Calendar, BarChart3 } from "lucide-react";
 import { Habit } from "@/types/habit";
@@ -33,17 +32,26 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showStatsDialog, setShowStatsDialog] = useState(false);
+  const [localCompletionState, setLocalCompletionState] = useState<boolean>(
+    habit.completedDates.includes(new Date().toISOString().split('T')[0])
+  );
   
   const stats = calculateHabitStats(habit);
-  const isCompletedToday = habit.completedDates.includes(
-    new Date().toISOString().split('T')[0]
-  );
-
-  const handleToggleCompletion = async () => {
+  
+  const handleToggleCompletion = useCallback(async () => {
+    if (isCompleting) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const isCurrentlyCompleted = habit.completedDates.includes(today);
+    setLocalCompletionState(!isCurrentlyCompleted);
     setIsCompleting(true);
-    await toggleHabitCompletion(habit.id);
-    setIsCompleting(false);
-  };
+    
+    try {
+      await toggleHabitCompletion(habit.id);
+    } finally {
+      setIsCompleting(false);
+    }
+  }, [habit.id, habit.completedDates, isCompleting]);
 
   const last7Days = getDateRangeArray(7);
 
@@ -106,14 +114,14 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, onEdit, onDelete }) => {
               onClick={handleToggleCompletion}
               disabled={isCompleting}
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                isCompletedToday 
+                localCompletionState 
                   ? `${habit.color} shadow-md` 
                   : 'bg-gray-100 hover:bg-gray-200'
               }`}
               whileTap={{ scale: 0.95 }}
             >
               <AnimatePresence mode="wait">
-                {isCompletedToday ? (
+                {localCompletionState ? (
                   <motion.div
                     key="checked"
                     initial={{ scale: 0.5, opacity: 0 }}
@@ -165,7 +173,6 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, onEdit, onDelete }) => {
         </div>
       </motion.div>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
@@ -191,7 +198,6 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, onEdit, onDelete }) => {
         </DialogContent>
       </Dialog>
       
-      {/* Stats Dialog */}
       <Dialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

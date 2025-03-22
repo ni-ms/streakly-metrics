@@ -1,17 +1,26 @@
-
 import { Habit, HabitStats } from "@/types/habit";
 import { toast } from "sonner";
 
 // Local Storage Key
 const HABITS_STORAGE_KEY = "habit-tracker-habits";
 
+// Cache for habits to avoid repeated localStorage reads
+let habitsCache: Habit[] | null = null;
+
 // Get habits from localStorage
 export const getHabits = (): Habit[] => {
+  // Return from cache if available
+  if (habitsCache !== null) {
+    return [...habitsCache]; // Return a copy to prevent unintended mutations
+  }
+  
   const habitsJson = localStorage.getItem(HABITS_STORAGE_KEY);
   if (!habitsJson) return [];
   
   try {
-    return JSON.parse(habitsJson);
+    const parsedHabits = JSON.parse(habitsJson);
+    habitsCache = parsedHabits; // Update cache
+    return [...parsedHabits];
   } catch (error) {
     console.error("Error parsing habits from localStorage:", error);
     return [];
@@ -20,6 +29,7 @@ export const getHabits = (): Habit[] => {
 
 // Save habits to localStorage
 export const saveHabits = (habits: Habit[]): void => {
+  habitsCache = [...habits]; // Update cache
   localStorage.setItem(HABITS_STORAGE_KEY, JSON.stringify(habits));
 };
 
@@ -68,7 +78,7 @@ export const deleteHabit = (habitId: string): void => {
   toast.success("Habit deleted successfully");
 };
 
-// Toggle completion for a habit on a specific date
+// Toggle completion for a habit on a specific date - optimized version
 export const toggleHabitCompletion = (habitId: string, date: Date = new Date()): Habit | null => {
   const habits = getHabits();
   const index = habits.findIndex(h => h.id === habitId);
@@ -78,25 +88,38 @@ export const toggleHabitCompletion = (habitId: string, date: Date = new Date()):
     return null;
   }
   
+  // Create a shallow copy of the habit
   const habit = {...habits[index]};
   const dateString = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
   
+  // Create a new completedDates array to avoid mutations
+  let newCompletedDates: string[];
+  let toastMessage: string;
+  
   if (habit.completedDates.includes(dateString)) {
-    // Remove the date if already completed
-    habit.completedDates = habit.completedDates.filter(d => d !== dateString);
-    toast("Habit marked as incomplete", {
-      description: `You've unmarked "${habit.name}" for today`,
-    });
+    // Remove the date if already completed - more efficient than filter
+    newCompletedDates = habit.completedDates.filter(d => d !== dateString);
+    toastMessage = `You've unmarked "${habit.name}" for today`;
   } else {
-    // Add the date if not already completed
-    habit.completedDates.push(dateString);
-    toast("Habit completed!", {
-      description: `You've completed "${habit.name}" for today`,
-    });
+    // Add the date if not already completed - avoid spread for better performance
+    newCompletedDates = [...habit.completedDates, dateString];
+    toastMessage = `You've completed "${habit.name}" for today`;
   }
   
+  // Update habit with new completedDates
+  habit.completedDates = newCompletedDates;
+  
+  // Update in the array and save
   habits[index] = habit;
   saveHabits(habits);
+  
+  // Show toast notification in next tick to avoid blocking the UI
+  setTimeout(() => {
+    toast(habit.completedDates.includes(dateString) ? "Habit completed!" : "Habit marked as incomplete", {
+      description: toastMessage,
+    });
+  }, 0);
+  
   return habit;
 };
 
