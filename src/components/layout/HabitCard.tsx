@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+
+import React, { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, MoreVertical, Trash2, Edit, Calendar, BarChart3 } from "lucide-react";
 import { Habit } from "@/types/habit";
@@ -32,18 +33,41 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showStatsDialog, setShowStatsDialog] = useState(false);
+  
+  // Get today's date string once
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+  
+  // Track if the habit is completed locally
   const [localCompletionState, setLocalCompletionState] = useState<boolean>(
-    habit.completedDates.includes(new Date().toISOString().split('T')[0])
+    habit.completedDates.includes(today)
   );
   
-  const stats = calculateHabitStats(habit);
+  // Create a local version of completedDates that includes the optimistic update
+  const [localCompletedDates, setLocalCompletedDates] = useState<string[]>(
+    habit.completedDates
+  );
+  
+  // Calculate stats based on local completed dates
+  const localHabit = useMemo(() => ({
+    ...habit,
+    completedDates: localCompletedDates
+  }), [habit, localCompletedDates]);
+  
+  const stats = useMemo(() => calculateHabitStats(localHabit), [localHabit]);
   
   const handleToggleCompletion = useCallback(async () => {
     if (isCompleting) return;
     
-    const today = new Date().toISOString().split('T')[0];
-    const isCurrentlyCompleted = habit.completedDates.includes(today);
-    setLocalCompletionState(!isCurrentlyCompleted);
+    // Set local completion state for immediate UI feedback
+    const newCompletionState = !localCompletionState;
+    setLocalCompletionState(newCompletionState);
+    
+    // Update local completed dates array for the weekly view
+    const newCompletedDates = newCompletionState
+      ? [...localCompletedDates, today].filter((date, index, self) => self.indexOf(date) === index) // Add today if completing & deduplicate
+      : localCompletedDates.filter(date => date !== today); // Remove today if uncompleting
+    
+    setLocalCompletedDates(newCompletedDates);
     setIsCompleting(true);
     
     try {
@@ -51,9 +75,9 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, onEdit, onDelete }) => {
     } finally {
       setIsCompleting(false);
     }
-  }, [habit.id, habit.completedDates, isCompleting]);
+  }, [habit.id, localCompletionState, localCompletedDates, today, isCompleting]);
 
-  const last7Days = getDateRangeArray(7);
+  const last7Days = useMemo(() => getDateRangeArray(7), []);
 
   return (
     <>
@@ -150,7 +174,8 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, onEdit, onDelete }) => {
           <div className="mt-4">
             <div className="flex justify-between">
               {last7Days.map((date, i) => {
-                const isCompleted = habit.completedDates.includes(date);
+                // Use the localCompletedDates for an immediate UI update
+                const isCompleted = localCompletedDates.includes(date);
                 const day = new Date(date).toLocaleDateString('en-US', { weekday: 'short' }).charAt(0);
                 
                 return (

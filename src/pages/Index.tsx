@@ -26,9 +26,21 @@ const Index = () => {
     loadHabits();
 
     // Set up an interval to refresh habits (for streak calculations)
-    const intervalId = setInterval(loadHabits, 60000); // Refresh every minute
+    const intervalId = setInterval(loadHabits, 30000); // Refresh every 30 seconds
 
-    return () => clearInterval(intervalId);
+    // Set up an event listener for storage changes (when habit is modified in another tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "habit-tracker-habits" || e.key === null) {
+        loadHabits();
+      }
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, [loadHabits]);
 
   const handleEditHabit = useCallback((habit: Habit) => {
